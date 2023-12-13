@@ -149,3 +149,4 @@ pipeline {
 Этот pipeline включает три этапа: установка Java и Jenkins, установка Golang, и создание Freestyle проекта. 
 
 
+![Задание 1](Решение2.png)
