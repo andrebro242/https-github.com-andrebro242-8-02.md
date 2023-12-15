@@ -85,59 +85,56 @@ export PATH=$PATH:/usr/local/go/bin
     Вставил следующий код в поле "Script":
 
 pipeline {
+    // Задаем агента, который будет использоваться для выполнения Pipeline
     agent any
     
+    // Определяем переменные среды, необходимые для Go
     environment {
-        GOLANG_VERSION = 'go1.21.5.linux-amd64.tar.gz'  // Версия Golang, которую мы устанавливаем
-        GIT_REPO_URL = 'https://github.com/andrebro242/https-github.com-andrebro242-8-02.md.git'  // URL вашего Git-репозитория
-        JENKINS_CREDENTIALS_ID = 'jenkins-credentials-id'  // Идентификатор учетных данных в Jenkins
+        GOROOT = "/usr/local/go"
+        PATH = "$GOROOT/bin:$PATH"
+        GO111MODULE = 'on'
     }
 
+    // Определяем этапы выполнения Pipeline
     stages {
-        stage('Install Java and Jenkins') {
+        // Этап Checkout: Получение исходного кода из репозитория
+        stage('Checkout') {
             steps {
                 script {
-                    sh 'sudo apt update'  // Обновляем информацию о доступных пакетах
-                    sh 'sudo apt install openjdk-11-jdk -y'  // Устанавливаем OpenJDK 11
-                    sh 'wget -q -O - https://pkg.jenkins.io/debian/jenkins.io.key | sudo apt-key add -'  // Добавляем ключ Jenkins для проверки подлинности
-                    sh 'sudo sh -c "echo deb http://pkg.jenkins.io/debian-stable binary/ > /etc/apt/sources.list.d/jenkins.list"'  // Добавляем репозиторий Jenkins
-                    sh 'sudo apt update'  // Обновляем информацию о доступных пакетах после добавления Jenkins репозитория
-                    sh 'sudo apt install jenkins -y'  // Устанавливаем Jenkins
-                    sh 'sudo systemctl start jenkins'  // Запускаем Jenkins
-                    sh 'sudo systemctl enable jenkins'  // Добавляем Jenkins в автозапуск
-                    sh 'sudo systemctl status jenkins'  // Проверяем статус Jenkins
+                    // Используем GitSCM для проверки кода из репозитория
+                    checkout([
+                        $class: 'GitSCM',
+                        branches: [[name: '*/main']],
+                        userRemoteConfigs: [[url: 'https://github.com/andrebro242/https-github.com-andrebro242-8-02.md.git']]
+                    ])
                 }
             }
         }
-        
-        stage('Install Golang') {
+
+        // Этап Build and Test: Сборка и тестирование проекта на Go
+        stage('Build and Test') {
             steps {
                 script {
-                    sh 'wget https://golang.org/dl/${GOLANG_VERSION}'  // Скачиваем Golang
-                    sh "sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf ${GOLANG_VERSION}"  // Распаковываем и устанавливаем Golang
-                    sh 'echo "export PATH=$PATH:/usr/local/go/bin" >> ~/.profile'  // Добавляем Golang в переменную окружения PATH
-                    sh 'source ~/.profile'  // Применяем изменения в текущей сессии
-                    sh 'go version'  // Проверяем версию Golang
+                    // Выводим версию Go
+                    sh 'go version'
+                    
+                    // Выполняем шаги сборки и тестирования проекта
+                    sh 'go test .'
+                    sh 'go build'
                 }
             }
         }
-        
-        stage('Create Freestyle Project') {
-            steps {
-                script {
-                    // Создаем новый Freestyle проект
-                    sh 'echo "Creating Freestyle Project"'
-                    sh "curl -X POST -u ${JENKINS_CREDENTIALS_ID} -H 'Content-Type: application/json' -d '{\"name\": \"MyGoProject\", \"mode\": \"NORMAL\"}' http://localhost:8080/createItem?"
-                    
-                    // Настраиваем проект
-                    sh 'echo "Configuring project"'
-                    sh "curl -X POST -u ${JENKINS_CREDENTIALS_ID} -H 'Content-Type: application/json' -d '{\"projects\": [{\"projectName\": \"MyGoProject\", \"scm\": {\"value\": \"1\", \"userRemoteConfigs\": [{\"url\": \"${GIT_REPO_URL}\"}]}, \"assignedLabelString\": \"master\", \"builders\": [{\"command\": \"export PATH=$PATH:/usr/local/go/bin\"}, {\"command\": \"/usr/local/go/bin/go test .\"}, {\"command\": \"/usr/local/go/bin/go build\"}], \"publishers\": [], \"buildWrappers\": []}]}' http://${JENKINS_CREDENTIALS_ID}@localhost:8080/job/MyGoProject/configSubmit?"
-                    
-                    // Сохраняем настройки проекта
-                    sh 'echo "Saving project configuration"'
-                    sh "curl -X POST -u ${JENKINS_CREDENTIALS_ID} http://${JENKINS_CREDENTIALS_ID}@localhost:8080/job/MyGoProject/doSave?"
-                }
-            }
+    }
+
+    // Пост-обработка после завершения Pipeline
+    post {
+        // Действия в случае успешного завершения Pipeline
+        success {
+            echo 'Сборка прошла успешно! Выполните необходимые действия.'
+        }
+        // Действия в случае неудачного завершения Pipeline
+        failure {
+            echo 'Сборка не удалась! Проанализируйте ошибки и внесите необходимые изменения.'
         }
     }
 }
@@ -149,4 +146,4 @@ pipeline {
 Этот pipeline включает три этапа: установка Java и Jenkins, установка Golang, и создание Freestyle проекта. 
 
 
-![Задание 1](Решение2.png)
+![Задание 2](Решение21.png)
