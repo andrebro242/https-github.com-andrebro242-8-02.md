@@ -147,3 +147,133 @@ pipeline {
 
 
 ![Задание 2](решение21.png)
+
+
+Решение 3
+
+1.Скачал архив с OpenJDK 8:
+
+wget https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public -O adoptopenjdk-key.asc
+gpg --no-default-keyring --keyring ./adoptopenjdk-keyring.gpg --import adoptopenjdk-key.asc
+gpg --no-default-keyring --keyring ./adoptopenjdk-keyring.gpg --export --output adoptopenjdk-archive-keyring.gpg
+sudo mv adoptopenjdk-archive-keyring.gpg /usr/share/keyrings/
+
+Добавил репозиторий с OpenJDK 8:
+
+Создал файл /etc/apt/sources.list.d/backports.list и добавил в него следующую строку:
+
+deb [signed-by=/usr/share/keyrings/adoptopenjdk-archive-keyring.gpg] https://adoptopenjdk.jfrog.io/adoptopenjdk/deb buster main
+
+Сохранил изменения.
+
+Обновил список пакетов:
+
+sudo apt-get update
+
+Установил OpenJDK 8:
+
+sudo apt-get install adoptopenjdk-8-hotspot
+
+Проверил версию Java:
+
+java -version
+
+Настроил переменные окружения:
+
+Добавил следующие строки в файл профиля :
+
+export JAVA_HOME=/usr/lib/jvm/adoptopenjdk-8-hotspot-amd64
+export INSTALL4J_JAVA_HOME=$JAVA_HOME
+
+Выполнил source для применения изменений:
+
+source ~/.bashrc
+
+2.Изменил владельца каталога и файлов:
+
+sudo chown -R andrebro242:andrebro242 /home/andrebro242/nexus-3.63.0-01
+
+# Заменить "andrebro242" на пользователя. Эта команда изменяет владельца всех файлов и каталогов в каталоге Nexus на вашего пользователя.
+
+Изменил права доступа:
+
+chmod -R 755 /home/andrebro242/nexus-3.63.0-01
+
+# Эта команда устанавливает права доступа для каталога и его содержимого так, чтобы владелец имел права на запись и чтение, а остальные пользователи только на чтение.
+Запустил Nexus:
+
+./nexus run
+
+корректно остановить ./nexus stop
+cd /home/andrebro242/nexus-3.63.0-01/nexus-3.63.0-01/bin
+          запустить  ./nexus start
+
+
+3.http://localhost:8081/#admin/repository/repositories создал проект my_nexus_repo (http://localhost:8081/repository/my_nexus_repo/)
+в разделе "Repositories" 
+"Create Repository"
+тип репозитория "Raw (hosted)"
+
+4.В jenkins d MyGoPipeline :
+
+pipeline {
+    agent any
+    
+    environment {
+        GOROOT = "/usr/local/go"
+        PATH = "$GOROOT/bin:$PATH"
+        GO111MODULE = 'on'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                script {
+                    checkout([
+                        $class: 'GitSCM',
+                        branches: [[name: '*/main']],
+                        userRemoteConfigs: [[url: 'https://github.com/andrebro242/https-github.com-andrebro242-8-02.md.git']]
+                    ])
+                }
+            }
+        }
+
+        stage('Build and Test') {
+            steps {
+                script {
+                    sh 'go version'
+                    
+                    // Замените следующую строку на вашу команду сборки Go-файла
+                    sh 'go build -o myapp'
+                }
+            }
+        }
+
+        stage('Publish to Nexus') {
+            steps {
+                script {
+                    // Загрузка бинарного файла в Nexus raw-hosted репозиторий
+                    nexusArtifactUploader artifacts: [[artifactId: 'myapp', classifier: '', file: 'myapp', type: 'exe']], credentialsId: 'nexus-credentials', groupId: 'com.example', nexusUrl: 'http://localhost:8081/repository/raw-hosted/', nexusVersion: '3', protocol: 'http', repository: 'raw-hosted', version: '1.0-SNAPSHOT'
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Сборка прошла успешно! Выполните необходимые действия.'
+        }
+        failure {
+            echo 'Сборка не удалась! Проанализируйте ошибки и внесите необходимые изменения.'
+        }
+    }
+}
+
+В измененном Jenkinsfile добавлен новый этап (stage) с именем 'Publish to Nexus', который выполняет шаги по сборке Go-файла и его загрузке в Nexus raw-hosted репозиторий.
+
+![Задание 3](решение3.png)
+
+
+
+
+
